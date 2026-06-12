@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star Wars Mini App</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: auto; padding: 20px; background: #111; color: #eee; }
+        input, textarea, button { width: 100%; margin: 8px 0; padding: 10px; border-radius: 8px; border: none; }
+        button { background: #f5c542; color: #000; font-weight: bold; cursor: pointer; }
+        .message { background: #222; margin: 8px 0; padding: 8px; border-radius: 8px; }
+        .user { color: #f5c542; font-weight: bold; }
+        .time { font-size: 0.7em; color: #888; }
+    </style>
+</head>
+<body>
+    <h1>📝 Отправить сообщение в бота</h1>
+    <input type="number" id="userId" placeholder="Ваш Telegram ID (обязательно)" required>
+    <input type="text" id="username" placeholder="Username (без @)">
+    <input type="text" id="firstName" placeholder="Имя">
+    <textarea id="messageText" rows="3" placeholder="Ваше сообщение"></textarea>
+    <button onclick="sendMessage()">Отправить</button>
+
+    <hr>
+    <h2>📜 Последние сообщения</h2>
+    <div id="messages"></div>
+
+    <script>
+        // !!! ЗАМЕНИТЕ ЭТОТ URL НА ВАШ РЕАЛЬНЫЙ СЕРВЕР !!!
+        const API_BASE = "http://ВАШ_IP_СЕРВЕРА:8000/api";   // или http://ваш-домен:8000/api
+
+        async function sendMessage() {
+            const userId = document.getElementById('userId').value;
+            if (!userId) {
+                alert("Введите Telegram ID");
+                return;
+            }
+            const payload = {
+                user_id: parseInt(userId),
+                username: document.getElementById('username').value || null,
+                first_name: document.getElementById('firstName').value || null,
+                text: document.getElementById('messageText').value
+            };
+            try {
+                const response = await fetch(`${API_BASE}/send_message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (response.ok) {
+                    alert("Сообщение сохранено!");
+                    document.getElementById('messageText').value = '';
+                    loadMessages();
+                } else {
+                    alert("Ошибка сервера");
+                }
+            } catch(e) {
+                alert("Не удалось подключиться к серверу: " + e.message);
+            }
+        }
+
+        async function loadMessages() {
+            try {
+                const response = await fetch(`${API_BASE}/messages?limit=20`);
+                const data = await response.json();
+                const container = document.getElementById('messages');
+                container.innerHTML = '';
+                for (let msg of data) {
+                    const div = document.createElement('div');
+                    div.className = 'message';
+                    div.innerHTML = `
+                        <div class="user">${msg.username || msg.first_name || msg.user_id}</div>
+                        <div>${escapeHtml(msg.text)}</div>
+                        <div class="time">${new Date(msg.timestamp).toLocaleString()}</div>
+                    `;
+                    container.appendChild(div);
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        loadMessages();
+        setInterval(loadMessages, 10000); // обновление каждые 10 секунд
+    </script>
+</body>
+</html>
